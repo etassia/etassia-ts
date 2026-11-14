@@ -2,7 +2,7 @@ name: Release npm (etassia)
 
 # Trusted publishing (OIDC): requires the owner-side registration on
 # npmjs.com — package `etassia`, owner `etassia`, repository `etassia-ts`,
-# workflow `release.yml`, environment `npm`. No npm token is stored; the
+# workflow `release.yml` (no environment claim). No npm token is stored; the
 # publish job presents the OIDC id-token and npm verifies the provenance
 # against that registration.
 
@@ -96,7 +96,6 @@ jobs:
   publish:
     needs: [build, smoke]
     runs-on: ubuntu-latest
-    environment: npm
     permissions:
       id-token: write
     steps:
