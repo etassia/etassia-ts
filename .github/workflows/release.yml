@@ -112,6 +112,6 @@ jobs:
           name: npm-tarball
           path: pkg
       - name: Publish with provenance
-        run: npm publish pkg/etassia-*.tgz --provenance --access public
+        run: npm publish ./pkg/etassia-*.tgz --provenance --access public
         env:
           NODE_AUTH_TOKEN: "" # explicit: trusted publishing only, no token
