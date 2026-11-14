@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GOLDEN_MMD: etassia-rs/golden/pie/pie_spec-0b1f3197.mmd
+  GOLDEN_SVG: etassia-rs/golden/pie/pie_spec-0b1f3197.svg
+
+jobs:
+  test:
+    name: build + golden (ubuntu)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: The submodule commit equals the pinned engine commit
+        run: |
+          pinned="$(cat etassia-rs-version.txt)"
+          got="$(git submodule status etassia-rs | awk '{print $1}' | tr -d '+-U ')"
+          test "$got" = "$pinned" || { echo "submodule $got does not match the pin $pinned"; exit 1; }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Pack
+        run: |
+          mkdir -p pkg
+          npm pack --pack-destination pkg
+          tar -tzf pkg/etassia-*.tgz | tee /dev/stderr | grep -q 'package/dist/etassia.wasm'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball
+          path: pkg/*.tgz
+          if-no-files-found: error
+
+  smoke:
+    name: smoke (${{ matrix.os }}, node ${{ matrix.node }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, node: "20" }
+          - { os: macos-15, node: "22" }
+          - { os: windows-latest, node: "22" }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # autocrlf corrupted golden artifacts before; every checkout keeps LF.
+      - name: Keep LF checkouts
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarball
+          path: tarball
+      - name: Install the packed tarball into a clean project and byte-compare the golden case
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          cp tarball/etassia-*.tgz "$work/"
+          cp "$GOLDEN_MMD" "$GOLDEN_SVG" scripts/smoke_installed_npm.mjs "$work/"
+          cd "$work"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund ./etassia-*.tgz
+          node smoke_installed_npm.mjs "$(basename "$GOLDEN_MMD")" "$(basename "$GOLDEN_SVG")"
