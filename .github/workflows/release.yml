@@ -110,7 +110,12 @@ jobs:
         with:
           name: npm-tarball
           path: pkg
-      - name: Publish with provenance
-        run: npm publish ./pkg/etassia-*.tgz --provenance --access public
+      - name: Publish with provenance (debug)
+        run: npm publish ./pkg/etassia-*.tgz --provenance --access public --loglevel=silly
         env:
           NODE_AUTH_TOKEN: "" # explicit: trusted publishing only, no token
+      - name: Dump npm debug log
+        if: always()
+        run: |
+          shopt -s nullglob
+          for f in ~/.npm/_logs/*.log; do echo "=== $f ==="; cat "$f"; done
