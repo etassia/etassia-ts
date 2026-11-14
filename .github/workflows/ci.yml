@@ -23,7 +23,7 @@ jobs:
       - name: The submodule commit equals the pinned engine commit
         run: |
           pinned="$(cat etassia-rs-version.txt)"
-          got="$(git submodule status etassia-rs | awk '{print $1}' | tr -d '+-U ')"
+          got="$(git submodule status etassia-rs | awk '{ sub(/^[^0-9a-f]+/, "", $1); print $1 }')"
           test "$got" = "$pinned" || { echo "submodule $got does not match the pin $pinned"; exit 1; }
       - uses: dtolnay/rust-toolchain@stable
         with:
