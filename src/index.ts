@@ -23,6 +23,7 @@ interface Exports {
   etassia_alloc(len: number): number;
   etassia_dealloc(ptr: number, len: number): void;
   etassia_render(ptr: number, len: number): number;
+  etassia_render_dim(ptr: number, len: number): number;
   etassia_detect(ptr: number, len: number): number;
   etassia_result_ptr(): number;
   etassia_result_len(): number;
@@ -62,7 +63,10 @@ function wasm(): Exports {
   return instance;
 }
 
-function call(fn: "etassia_render" | "etassia_detect", source: string): string {
+function call(
+  fn: "etassia_render" | "etassia_render_dim" | "etassia_detect",
+  source: string,
+): string {
   const w = wasm();
   const bytes = new TextEncoder().encode(source);
   const ptr = w.etassia_alloc(bytes.length);
@@ -94,4 +98,14 @@ export function render(source: string): string {
 /** Detect the diagram type name of `source`. Throws EtassiaError when undetectable. */
 export function detect(source: string): string {
   return call("etassia_detect", source);
+}
+
+/**
+ * Render a DIM 0.1 document (JSON) to SVG. DIM is the Diagram Interchange
+ * Model: a declarative graph a model tool emits (see etassia/docs
+ * emitter-guide.md). Throws EtassiaError (class Unsupported) for a foreign
+ * DIM version, EtassiaError otherwise for invalid documents.
+ */
+export function renderDim(source: string): string {
+  return call("etassia_render_dim", source);
 }
